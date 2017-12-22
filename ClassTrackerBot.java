@@ -1,6 +1,4 @@
 import org.telegram.telegrambots.api.objects.Update;
-import org.telegram.telegrambots.api.objects.User;
-import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
@@ -8,8 +6,8 @@ import org.telegram.telegrambots.exceptions.TelegramApiException;
 import static java.lang.Math.toIntExact;
 
 public class ClassTrackerBot extends TelegramLongPollingBot {
-    boolean toTrack;
-    boolean isTracking;
+    private boolean toTrack;
+    private boolean isTracking;
     public ClassTrackerBot() {
         toTrack = false;
         isTracking = false;
@@ -27,50 +25,56 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
             long chat_id = update.getMessage().getChatId();
 
             System.out.println(user_first_name + " " + user_last_name + ": " + message_text);
-            System.out.println(toTrack);
-            System.out.println(isTracking);
             String text = "";
-            if (toTrack == true || message_text.equals("/track")) {
+            if (toTrack || message_text.equals("/track")) {
                 text += "Tracking . . .\n";
             }
-            if (message_text.equals("/help")) { // The help command
-                text += "Search for a class: enter the CRN" + "\n" +
-                        "Add a class: /track" + "\n" +
-                        "Stop tracking: /stop" + "\n" +
-                        "Start tracking: /start" + "\n" +
-                        "Clear tracker: /clear" + "\n" +
-                        "Show tracker: /show" + "\n" + 
-                        "Cancel add a class: /cancel";
-            } else if (message_text.equals("/stop")) { // Stop all operations.
-                text += "All tracking has been stopped.";
-                toTrack = false;
-                isTracking = false;
-            } else if (message_text.matches("\\d{5}")) { // When the text is a 5 digit integer.
-                ClassTracker classtracker = new ClassTracker(message_text);
-                text += classtracker.getInfo();
-                if (toTrack == true && !classtracker.getInfo().equals("Class not found")) {
-                    System.out.println(UserData.addClass(toIntExact(user_id), message_text)); // Adds a class to  track.
+            switch (message_text) {
+                case "/help":
+                    text += "Search for a class: enter the CRN" + "\n" +
+                            "Add a class: /track" + "\n" +
+                            "Stop tracking: /stop" + "\n" +
+                            "Start tracking: /start" + "\n" +
+                            "Clear tracker: /clear" + "\n" +
+                            "Show tracker: /show" + "\n" +
+                            "Cancel add a class: /cancel";
+                    break;
+                case "/stop":
+                    text += "All tracking has been stopped.";
                     toTrack = false;
-                }
-            } else if (message_text.equals("/track")) { // Begin tracking.
-                text += "Please send a 5-digit CRN";
-                toTrack = true;
-            } else if (message_text.equals("/cancel")) { // Stops the current tracking operation
-                text += "Canceled";
-                toTrack = false;
-            } else {
-                text += "Please send a 5-digit CRN";
+                    isTracking = false;
+                    break;
+                case "/track":
+                    text += "Please send a 5-digit CRN";
+                    toTrack = true;
+                    break;
+                case "/cancel":
+                    text += "Canceled";
+                    toTrack = false;
+                    break;
+                default:
+                    if (message_text.matches("\\d{5}")) { // When the text is a 5 digit integer.
+                        UserData.checkUnique(message_text);
+                        String classInfo = ClassTracker.getInfoString(message_text);
+                        text += classInfo;
+                        if (toTrack && !classInfo.equals("Class not found")) {
+                            System.out.println(UserData.addClass(toIntExact(user_id), message_text)); // Adds a class to track.
+                            toTrack = false;
+                        }
+                    } else {
+                        text += "Please send a 5-digit CRN";
+                    }
             }
-
 
             // Create a SendMessage object with chat ID and message.
             SendMessage message = new SendMessage()
                     .setChatId(chat_id)
                     .setText(text);
             try {
-                sendMessage(message); // Call method to send the message
+                execute(message); // Call method to send the message
                 UserData.check(user_first_name, user_last_name, toIntExact(user_id), user_username);
-            } catch (TelegramApiException e) {
+            }
+            catch (TelegramApiException e) {
                 e.printStackTrace();
             }
         }
@@ -78,11 +82,11 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "class_tracker_bot";
+        return "ClassTrackerBot";
     }
 
     @Override
     public String getBotToken() {
-        return "401224780:AAEM-N8JzDugj1pPJRPCMNzM9C64NkNkdew";
+        return "343007403:AAE9JjogzW33e3MLeOUaIa7adzEpLBIzO0M";
     }
 }
