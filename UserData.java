@@ -23,7 +23,7 @@ public class UserData {
         if (found == 0) {
             Document doc = new Document("first_name", first_name)
                     .append("last_name", last_name)
-                    .append("id", user_id)
+                    .append("user_id", user_id)
                     .append("username", username);
             collection.insertOne(doc);
             mongoClient.close();
@@ -36,14 +36,15 @@ public class UserData {
         }
     }
 
-    public static String addClass(int user_id, String crn) {
+    public static String addClass(int chat_id, String crn) {
         MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
         MongoClient mongoClient = new MongoClient(connectionString);
         MongoDatabase database = mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("trackedCRN");
-        long found = collection.count(Document.parse("{id : " + Integer.toString(user_id) + "," + "crn : " + crn + "}"));
+        long found = collection.count(Document.parse("{id : " + Integer.toString(chat_id) + "," + "crn : " + crn + "}"));
         if (found == 0) {
-            Document doc = new Document("id", user_id)
+            UserData.checkUnique(crn);
+            Document doc = new Document("chat_id", chat_id)
                     .append("crn", crn);
             collection.insertOne(doc);
             mongoClient.close();
@@ -62,7 +63,8 @@ public class UserData {
         MongoDatabase database = mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("uniqueCRN");
 
-        long found = collection.count(Document.parse("{id : " + crn));
+
+        long found = collection.count(Document.parse("{crn : \"" + crn + "\"}"));
         if (found > 0) {
             System.out.println("The class already exists");
             return false;
@@ -74,7 +76,7 @@ public class UserData {
             return false;
         }
 
-        Document doc = new Document("id", crn)
+        Document doc = new Document("crn", crn)
                 .append("name", classInfo[0])
                 .append("cap", classInfo[1])
                 .append("remain", classInfo[2])

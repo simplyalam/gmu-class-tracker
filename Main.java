@@ -6,12 +6,12 @@ public class Main {
     public static void main(String[] args) {
         ApiContextInitializer.init();
         TelegramBotsApi botsApi = new TelegramBotsApi();
+        ClassTrackerBot classBot = new ClassTrackerBot();
         try {
-            botsApi.registerBot(new ClassTrackerBot());
+            botsApi.registerBot(classBot);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
-
-        ClassTracker trackClasses = new ClassTracker();
+        (new Thread(new ClassTracker(classBot))).start();
     }
 }

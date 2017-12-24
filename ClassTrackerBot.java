@@ -1,16 +1,21 @@
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
 
+import static com.mongodb.client.model.Filters.eq;
 import static java.lang.Math.toIntExact;
 
 public class ClassTrackerBot extends TelegramLongPollingBot {
     private boolean toTrack;
-    private boolean isTracking;
     public ClassTrackerBot() {
         toTrack = false;
-        isTracking = false;
     }
     @Override
     public void onUpdateReceived(Update update) {
@@ -42,7 +47,6 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
                 case "/stop":
                     text += "All tracking has been stopped.";
                     toTrack = false;
-                    isTracking = false;
                     break;
                 case "/track":
                     text += "Please send a 5-digit CRN";
@@ -54,11 +58,10 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
                     break;
                 default:
                     if (message_text.matches("\\d{5}")) { // When the text is a 5 digit integer.
-                        UserData.checkUnique(message_text);
                         String classInfo = ClassTracker.getInfoString(message_text);
                         text += classInfo;
                         if (toTrack && !classInfo.equals("Class not found")) {
-                            System.out.println(UserData.addClass(toIntExact(user_id), message_text)); // Adds a class to track.
+                            System.out.println(UserData.addClass(toIntExact(chat_id), message_text)); // Adds a class to track.
                             toTrack = false;
                         }
                     } else {
@@ -88,5 +91,26 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
     @Override
     public String getBotToken() {
         return "343007403:AAE9JjogzW33e3MLeOUaIa7adzEpLBIzO0M";
+    }
+
+    public void pushChange(String crn) {
+        MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
+        MongoClient mongoClient = new MongoClient(connectionString);
+        MongoDatabase database = mongoClient.getDatabase("crnDatabase");
+        MongoCollection<Document> collection = database.getCollection("trackedCRN");
+
+        try (MongoCursor<Document> cursor = collection.find(eq("crn", crn)).iterator()) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+
+                SendMessage message = new SendMessage() // Create a message object object
+                        .setChatId(((Integer) doc.get("chat_id")).toString())
+                        .setText(ClassTracker.getInfoString((String) doc.get("crn")));
+                execute(message); // Sending our message object to user
+            }
+        }
+        catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 }
