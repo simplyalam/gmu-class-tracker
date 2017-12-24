@@ -1,7 +1,0 @@
-javac -cp telegrambots-3.2-jar-with-dependencies.jar;jsoup-1.10.3.jar;mongo-java-driver-3.5.0.jar;. ClassTracker.java
-javac -cp telegrambots-3.2-jar-with-dependencies.jar;jsoup-1.10.3.jar;mongo-java-driver-3.5.0.jar;. ClassTrackerBot.java
-javac -cp telegrambots-3.2-jar-with-dependencies.jar;jsoup-1.10.3.jar;mongo-java-driver-3.5.0.jar;. Main.java
-
-javac -cp telegrambots-3.2-jar-with-dependencies.jar;jsoup-1.10.3.jar;mongo-java-driver-3.5.0.jar;. *.java
-
-java -cp telegrambots-3.2-jar-with-dependencies.jar;jsoup-1.10.3.jar;mongo-java-driver-3.5.0.jar;. Main
