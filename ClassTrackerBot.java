@@ -9,14 +9,17 @@ import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import static com.mongodb.client.model.Filters.eq;
 import static java.lang.Math.toIntExact;
 
 public class ClassTrackerBot extends TelegramLongPollingBot {
-    private boolean toTrack;
-    public ClassTrackerBot() {
-        toTrack = false;
-    }
+    private static final MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
+    private static final MongoClient mongoClient = new MongoClient(connectionString);
+
     @Override
     public void onUpdateReceived(Update update) {
         // We check if the update has a message and the message has text
@@ -29,50 +32,29 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
             String message_text = update.getMessage().getText();
             long chat_id = update.getMessage().getChatId();
 
-            System.out.println(user_first_name + " " + user_last_name + ": " + message_text);
             String text = "";
-            if (toTrack || message_text.equals("/track")) {
-                text += "Tracking . . .\n";
-            }
-            switch (message_text) {
-                case "/help":
-                    text += "Search for a class: enter the CRN" + "\n" +
-                            "Add a class: /track" + "\n" +
-                            "Stop tracking: /stop" + "\n" +
-                            "Start tracking: /start" + "\n" +
-                            "Clear tracker: /clear" + "\n" +
-                            "Show tracker: /show" + "\n" +
-                            "Cancel add a class: /cancel";
-                    break;
-                case "/stop":
-                    text += "All tracking has been stopped.";
-                    toTrack = false;
-                    break;
-                case "/track":
-                    text += "Please send a 5-digit CRN";
-                    toTrack = true;
-                    break;
-                case "/cancel":
-                    text += "Canceled";
-                    toTrack = false;
-                    break;
-                default:
-                    if (message_text.matches("\\d{5}")) { // When the text is a 5 digit integer.
-                        String classInfo = ClassTracker.getInfoString(message_text);
-                        text += classInfo;
-                        if (toTrack && !classInfo.equals("Class not found")) {
-                            System.out.println(UserData.addClass(toIntExact(chat_id), message_text)); // Adds a class to track.
-                            toTrack = false;
-                        }
-                    } else {
-                        text += "Please send a 5-digit CRN";
-                    }
+            if (message_text.equals("/help")) {
+                text += "Helpful commands:" + "\n" +
+                        "Add a class: /track {5-digit CRN}" + "\n" +
+                        "Start tracking: /start" + "\n" +
+                        "Clear tracker: /clear" + "\n" +
+                        "Show tracker: /show";
+            } else if (message_text.matches("/track \\d{5}")) { // When the text is a 5 digit integer.
+                trackingMsg(chat_id);
+
+                String crn = message_text.substring(7, 12);
+                text +=  ClassTracker.getInfoString(crn);
+
+                UserData.addClass(toIntExact(chat_id), crn);
+            } else {
+                text += "Type /help for more info.";
             }
 
             // Create a SendMessage object with chat ID and message.
             SendMessage message = new SendMessage()
                     .setChatId(chat_id)
                     .setText(text);
+            log(user_first_name, user_last_name, Long.toString(user_id), Long.toString(chat_id), message_text);
             try {
                 execute(message); // Call method to send the message
                 UserData.check(user_first_name, user_last_name, toIntExact(user_id), user_username);
@@ -94,8 +76,6 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
     }
 
     public void pushChange(String crn) {
-        MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
-        MongoClient mongoClient = new MongoClient(connectionString);
         MongoDatabase database = mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("trackedCRN");
 
@@ -112,5 +92,25 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
         catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    }
+
+    private void trackingMsg(long chat_id) {
+        SendMessage message = new SendMessage()
+                .setChatId(chat_id)
+                .setText("Tracking . . .");
+        try {
+            execute(message); // Call method to send the message
+        }
+        catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void log(String first_name, String last_name, String user_id, String chat_id, String txt) {
+        System.out.println("\n----------------------------");
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        Date date = new Date();
+        System.out.println(dateFormat.format(date));
+        System.out.println("User: " + first_name + " " + last_name + " (user_id = " + user_id + ") (chat_id = " + chat_id + ")\n" + "Message: " + txt);
     }
 }

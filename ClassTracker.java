@@ -9,6 +9,9 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 public class ClassTracker implements Runnable {
+    private static final MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
+    private static final MongoClient mongoClient = new MongoClient(connectionString);
+
     private ClassTrackerBot classBot;
     private boolean isRunning;
 
@@ -18,11 +21,6 @@ public class ClassTracker implements Runnable {
     }
 
     public void run() {
-        // Start connection with MongoDB Server
-        MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
-
-        // Setting the userDatabase and users collection
-        MongoClient mongoClient = new MongoClient(connectionString);
         MongoDatabase database = mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("uniqueCRN");
 
@@ -55,9 +53,6 @@ public class ClassTracker implements Runnable {
                 .append("wait_cap", classInfo[3])
                 .append("wait_remain", classInfo[4]);
              */
-
-
-
         }
     }
 
@@ -118,12 +113,11 @@ public class ClassTracker implements Runnable {
     }
 
     public static Document makeDoc(String[] classInfo, String crn) {
-        Document doc = new Document("crn", crn)
+        return new Document("crn", crn)
                 .append("name", classInfo[0])
                 .append("cap", classInfo[1])
                 .append("remain", classInfo[2])
                 .append("wait_cap", classInfo[3])
                 .append("wait_remain", classInfo[4]);
-        return doc;
     }
 }
