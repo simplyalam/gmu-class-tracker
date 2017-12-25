@@ -1,5 +1,3 @@
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -17,9 +15,6 @@ import static com.mongodb.client.model.Filters.eq;
 import static java.lang.Math.toIntExact;
 
 public class ClassTrackerBot extends TelegramLongPollingBot {
-    private static final MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
-    private static final MongoClient mongoClient = new MongoClient(connectionString);
-
     @Override
     public void onUpdateReceived(Update update) {
         // We check if the update has a message and the message has text
@@ -28,9 +23,12 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
             String user_first_name = update.getMessage().getChat().getFirstName();
             String user_last_name = update.getMessage().getChat().getLastName();
             String user_username = update.getMessage().getChat().getUserName();
-            long user_id = update.getMessage().getChat().getId();
+            String user_id = Integer.toString(toIntExact(update.getMessage().getChat().getId()));
             String message_text = update.getMessage().getText();
-            long chat_id = update.getMessage().getChatId();
+            String chat_id = Integer.toString(toIntExact(update.getMessage().getChatId()));
+
+            log(user_first_name, user_last_name, user_id, chat_id, message_text);
+            UserData.check(user_first_name, user_last_name, user_id, user_username);
 
             String text = "";
             if (message_text.equals("/help")) {
@@ -45,7 +43,7 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
                 String crn = message_text.substring(7, 12);
                 text +=  ClassTracker.getInfoString(crn);
 
-                UserData.addClass(toIntExact(chat_id), crn);
+                UserData.addClass(chat_id, crn);
             } else {
                 text += "Type /help for more info.";
             }
@@ -54,10 +52,8 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
             SendMessage message = new SendMessage()
                     .setChatId(chat_id)
                     .setText(text);
-            log(user_first_name, user_last_name, Long.toString(user_id), Long.toString(chat_id), message_text);
             try {
                 execute(message); // Call method to send the message
-                UserData.check(user_first_name, user_last_name, toIntExact(user_id), user_username);
             }
             catch (TelegramApiException e) {
                 e.printStackTrace();
@@ -76,7 +72,7 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
     }
 
     public void pushChange(String crn) {
-        MongoDatabase database = mongoClient.getDatabase("crnDatabase");
+        MongoDatabase database = Main.mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("trackedCRN");
 
         try (MongoCursor<Document> cursor = collection.find(eq("crn", crn)).iterator()) {
@@ -94,7 +90,7 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
         }
     }
 
-    private void trackingMsg(long chat_id) {
+    private void trackingMsg(String chat_id) {
         SendMessage message = new SendMessage()
                 .setChatId(chat_id)
                 .setText("Tracking . . .");

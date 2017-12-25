@@ -3,25 +3,21 @@ import org.jsoup.*;
 import org.jsoup.select.*;
 import org.bson.Document;
 
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 public class ClassTracker implements Runnable {
-    private static final MongoClientURI connectionString = new MongoClientURI("mongodb://127.0.0.1:27017");
-    private static final MongoClient mongoClient = new MongoClient(connectionString);
 
     private ClassTrackerBot classBot;
     private boolean isRunning;
 
-    public ClassTracker(ClassTrackerBot classBot) {
+    ClassTracker(ClassTrackerBot classBot) {
         this.classBot = classBot;
         isRunning = true;
     }
 
     public void run() {
-        MongoDatabase database = mongoClient.getDatabase("crnDatabase");
+        MongoDatabase database = Main.mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("uniqueCRN");
 
         while(isRunning) {
@@ -35,7 +31,8 @@ public class ClassTracker implements Runnable {
                     if (newInfo != null && !newInfo[2].equals(oldInfo[2])) {
                         Document newDoc = makeDoc(newInfo, crn);
 
-                        collection.updateOne(Document.parse("{crn : \"" + crn + "\"}"), newDoc);
+                        Document query = new Document("crn", crn);
+                        collection.updateOne(query, newDoc);
                         classBot.pushChange(crn);
                     }
                 }
@@ -44,15 +41,6 @@ public class ClassTracker implements Runnable {
             catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            /*
-            Document doc = new Document("crn", crn)
-                .append("name", classInfo[0])
-                .append("cap", classInfo[1])
-                .append("remain", classInfo[2])
-                .append("wait_cap", classInfo[3])
-                .append("wait_remain", classInfo[4]);
-             */
         }
     }
 
@@ -100,7 +88,7 @@ public class ClassTracker implements Runnable {
         return null;
     }
 
-    public static String[] getInfoDoc(Document doc) {
+    private static String[] getInfoDoc(Document doc) {
         String[] classInfo = new String[5];
 
         classInfo[0] = (String) doc.get("name");
