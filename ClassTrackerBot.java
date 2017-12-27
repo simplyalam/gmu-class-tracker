@@ -9,6 +9,7 @@ import org.telegram.telegrambots.exceptions.TelegramApiException;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 import static com.mongodb.client.model.Filters.eq;
@@ -28,24 +29,87 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
             String chat_id = Integer.toString(toIntExact(update.getMessage().getChatId()));
 
             log(user_first_name, user_last_name, user_id, chat_id, message_text);
-            UserData.check(user_first_name, user_last_name, user_id, user_username);
+            MongoData.check(user_first_name, user_last_name, user_id, user_username);
 
             String text = "";
             if (message_text.equals("/help")) {
-                text += "Helpful commands:" + "\n" +
-                        "Add a class: /track {5-digit CRN}" + "\n" +
-                        "Start tracking: /start" + "\n" +
-                        "Clear tracker: /clear" + "\n" +
-                        "Show tracker: /show";
-            } else if (message_text.matches("/track \\d{5}")) { // When the text is a 5 digit integer.
+                text = "Commands:" + "\n" +
+                        "Add:    /add {5-digit CRN}" + "\n" +
+                        "Remove: /remove {5-digit CRN}" + "\n" +
+                        "Remove all: /removeall" + "\n" +
+                        "Show all:   /show" + "\n" +
+                        "More help: /help {command}";
+            } else if (message_text.equals("/show")) {
+                ArrayList<String> crns = MongoData.getClasses(chat_id);
+                for (String crn : crns) {
+                    String classInfo = ClassTracker.getInfoString(crn);
+
+                    SendMessage message = new SendMessage()
+                            .setChatId(chat_id)
+                            .setText(classInfo);
+                    try {
+                        execute(message); // Call method to send the message
+                    }
+                    catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return;
+            } else if (message_text.equals("/removeall")) {
+                removingMsg(chat_id, true);
+
+                MongoData.removeAll(chat_id);
+                text = "Removed all classes.";
+            } else if (message_text.substring(0,4).equals("/add")) { // When the text is a 5 digit integer.
                 trackingMsg(chat_id);
 
-                String crn = message_text.substring(7, 12);
-                text +=  ClassTracker.getInfoString(crn);
+                String[] values = message_text.trim().split("\\s+");
 
-                UserData.addClass(chat_id, crn);
+                if (values.length < 2) {
+                    text =  "Each CRN must be 5 digits long.\n" +
+                            "Separate each CRN to be added with a space.\n" +
+                            "/add {crn 1} {crn 2} . . .";
+                } else {
+                    for (int i = 1; i < values.length; i++) {
+                        String crn = values[i];
+                        if (MongoData.validCRN(crn)) {
+                            if (MongoData.addClass(chat_id, crn)) {
+                                text += "Added: " + crn + "\n";
+                            } else {
+                                text += "Duplicate: " + crn + "\n";
+                            }
+                        } else {
+                            text += "Invalid: " + crn + "\n";
+                            break;
+                        }
+                    }
+                }
+            } else if (message_text.substring(0,7).equals("/remove")) {
+                removingMsg(chat_id, false);
+
+                String[] values = message_text.trim().split("\\s+");
+
+                if (values.length < 2) {
+                    text = "Each CRN must be 5 digits long.\n" +
+                            "Separate each CRN to be added with a space.\n" +
+                            "/remove {crn 1} {crn 2} . . .";
+                } else {
+                    for (int i = 1; i < values.length; i++) {
+                        String crn = values[i];
+                        if (MongoData.validCRN(crn)) {
+                            if (MongoData.removeClass(chat_id, crn)) {
+                                text += "Removed: " + crn + "\n";
+                            } else {
+                                text += "Does not exist: " + crn + "\n";
+                            }
+                        } else {
+                            text += "Invalid: " + crn + "\n";
+                            break;
+                        }
+                    }
+                }
             } else {
-                text += "Type /help for more info.";
+                text = "Type /help for more info.";
             }
 
             // Create a SendMessage object with chat ID and message.
@@ -75,12 +139,15 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
         MongoDatabase database = Main.mongoClient.getDatabase("crnDatabase");
         MongoCollection<Document> collection = database.getCollection("trackedCRN");
 
+        Document query = new Document("crn", crn);
+        if (collection.count(query) == 0) return;
+
         try (MongoCursor<Document> cursor = collection.find(eq("crn", crn)).iterator()) {
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
 
                 SendMessage message = new SendMessage() // Create a message object object
-                        .setChatId(((Integer) doc.get("chat_id")).toString())
+                        .setChatId((String) doc.get("chat_id"))
                         .setText(ClassTracker.getInfoString((String) doc.get("crn")));
                 execute(message); // Sending our message object to user
             }
@@ -94,6 +161,25 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage()
                 .setChatId(chat_id)
                 .setText("Tracking . . .");
+        try {
+            execute(message); // Call method to send the message
+        }
+        catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void removingMsg(String chat_id, boolean isAll) {
+        String text;
+        if (isAll) {
+            text = "Removing all . . .";
+        } else {
+            text = "Removing . . .";
+        }
+
+        SendMessage message = new SendMessage()
+                .setChatId(chat_id)
+                .setText(text);
         try {
             execute(message); // Call method to send the message
         }

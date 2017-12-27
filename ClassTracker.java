@@ -6,6 +6,10 @@ import org.bson.Document;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
+import java.net.UnknownHostException;
+
+import static com.mongodb.client.model.Filters.eq;
+
 public class ClassTracker implements Runnable {
 
     private ClassTrackerBot classBot;
@@ -25,14 +29,14 @@ public class ClassTracker implements Runnable {
                 while (cursor.hasNext()) {
                     Document doc = cursor.next();
                     String crn = (String) doc.get("crn");
-                    
-                    String[] newInfo = getInfoArray(crn);
-                    String[] oldInfo = getInfoDoc(doc);
-                    if (newInfo != null && !newInfo[2].equals(oldInfo[2])) {
-                        Document newDoc = makeDoc(newInfo, crn);
 
-                        Document query = new Document("crn", crn);
-                        collection.updateOne(query, newDoc);
+                    Document newDoc = makeDoc(crn);
+                    if (newDoc == null) {
+                        throw new NullPointerException();
+                    }
+
+                    if (!doc.get("remain").equals(newDoc.get("remain"))) {
+                        collection.updateOne(eq("crn", crn), new Document("$set", newDoc));
                         classBot.pushChange(crn);
                     }
                 }
@@ -40,6 +44,14 @@ public class ClassTracker implements Runnable {
             }
             catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+            catch (NullPointerException e) {
+                try {
+                    System.out.println("Network error: Waiting 10s . . .");
+                    Thread.sleep(10000);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
             }
         }
     }
@@ -55,9 +67,7 @@ public class ClassTracker implements Runnable {
                 "\nSeats Remaining: " +
                 classInfo[2] +
                 "\nWaitlist Size: " +
-                classInfo[3] +
-                "\nWaitlist Remaining: " +
-                classInfo[4];
+                (Integer.parseInt(classInfo[3]) - Integer.parseInt(classInfo[4]));
     }
 
     public static String[] getInfoArray(String crn) {
@@ -82,13 +92,16 @@ public class ClassTracker implements Runnable {
         catch (IndexOutOfBoundsException e) {
             return null;
         }
+        catch (UnknownHostException e) {
+            System.out.println("Error: Could not connect to patriotweb.gmu.edu");
+        }
         catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    private static String[] getInfoDoc(Document doc) {
+    /*private static String[] getInfoArray(Document doc) {
         String[] classInfo = new String[5];
 
         classInfo[0] = (String) doc.get("name");
@@ -98,7 +111,7 @@ public class ClassTracker implements Runnable {
         classInfo[4] = (String) doc.get("wait_remain");
 
         return classInfo;
-    }
+    }*/
 
     public static Document makeDoc(String[] classInfo, String crn) {
         return new Document("crn", crn)
@@ -107,5 +120,11 @@ public class ClassTracker implements Runnable {
                 .append("remain", classInfo[2])
                 .append("wait_cap", classInfo[3])
                 .append("wait_remain", classInfo[4]);
+    }
+
+    private static Document makeDoc(String crn) {
+        String[] classInfo = getInfoArray(crn);
+        if (classInfo == null) return null;
+        return makeDoc(classInfo, crn);
     }
 }
