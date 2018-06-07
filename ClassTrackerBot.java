@@ -132,7 +132,7 @@ public class ClassTrackerBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return "343007403:AAE9JjogzW33e3MLeOUaIa7adzEpLBIzO0M";
+        return "TELEGRAM BOT TOKEN HERE";
     }
 
     public void pushChange(String crn) {
