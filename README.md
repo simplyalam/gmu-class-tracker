@@ -13,9 +13,9 @@ The bot communicates with GMU students over the messaging service Telegram. It i
 
 ### Prerequisites
 
-[TelegramBots](https://github.com/rubenlagus/TelegramBots)
-[MongoDB](https://www.mongodb.com/)
-[JSoup](https://jsoup.org/)
+* [TelegramBots](https://github.com/rubenlagus/TelegramBots)
+* [MongoDB](https://www.mongodb.com/)
+* [JSoup](https://jsoup.org/)
 
 ### Running
 
