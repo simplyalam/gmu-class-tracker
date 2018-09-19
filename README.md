@@ -22,8 +22,7 @@ The bot communicates with GMU students over the messaging service Telegram. It i
 /help provides a list of commands
 
 ## Built With
-* [Python 3.6](https://www.python.org/downloads/)
-* [Selenium](https://seleniumhq.github.io/selenium/docs/api/py/) - The web scraper used
+* [Java](https://www.java.com/en/)
 
 ## Authors
 
